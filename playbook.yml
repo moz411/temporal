@@ -1,0 +1,9 @@
+- name: Test tasks
+  hosts: web
+  gather_facts: no
+  tasks:
+    - name: ping remote
+      ping:
+
+    - name: echo hello
+      shell: echo "Hello depuis Temporal"

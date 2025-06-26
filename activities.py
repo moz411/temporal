@@ -3,7 +3,9 @@ import json
 from temporalio import activity
 
 @activity.defn
-async def run_ansible_task(task_data: dict, host: str) -> dict:
+async def run_ansible_task(params) -> dict:
+    host = params.get("host", "localhost")
+    task_data = params.get("task")
     task_name = task_data.get("name", "ad-hoc-task")
     module = task_data.get("action", {}).get("module", "debug")
     args = task_data.get("action", {}).get("args", {})
@@ -15,6 +17,8 @@ async def run_ansible_task(task_data: dict, host: str) -> dict:
     cmd = [
         "ansible",
         host,
+        "-i",
+        "inventory.yml",
         "-m",
         module,
         "-a",

@@ -9,15 +9,15 @@ from activities import run_ansible_task
 @workflow.defn
 class HostWorkflow:
     @workflow.run
-    async def run(self, **kwargs) -> list[dict]:
-        host: str = kwargs.get("host", "")
-        tasks: list[dict] = kwargs.get("tasks", [])
+    async def run(self, params) -> list[dict]:
+        host: str = params.get("host", "")
+        tasks: list[dict] = params.get("tasks", [])
         results = []
         for task in tasks:
+            params = {"host": host, "task": task}
             result = await workflow.execute_activity(
                 run_ansible_task,
-                task,
-                host,
+                params,
                 schedule_to_close_timeout=timedelta(minutes=2),
             )
             results.append(result)
@@ -41,7 +41,7 @@ class AnsiblePlaybookWorkflow:
                 params = {"host": host, "tasks": tasks}
                 res = await workflow.execute_child_workflow(
                     HostWorkflow.run,
-                    **params,
+                    params,
                     id=f"{workflow.info().workflow_id}-{host}",
                 )
                 results[host] = res
@@ -49,7 +49,7 @@ class AnsiblePlaybookWorkflow:
 
 async def main():
     client = await Client.connect("temporal-frontend.temporal.svc:7233")
-    with open("site.yml") as f:
+    with open("playbook.yml") as f:
         playbook = yaml.safe_load(f)
 
     result = await client.execute_workflow(
