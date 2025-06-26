@@ -9,7 +9,9 @@ from activities import run_ansible_task
 @workflow.defn
 class HostWorkflow:
     @workflow.run
-    async def run(self, host: str, tasks: list[dict]) -> list[dict]:
+    async def run(self, **kwargs) -> list[dict]:
+        host: str = kwargs.get("host", "")
+        tasks: list[dict] = kwargs.get("tasks", [])
         results = []
         for task in tasks:
             result = await workflow.execute_activity(
@@ -36,10 +38,10 @@ class AnsiblePlaybookWorkflow:
                 else list(hosts)
             )
             for host in hosts_list:
+                params = {"host": host, "tasks": tasks}
                 res = await workflow.execute_child_workflow(
                     HostWorkflow.run,
-                    host,
-                    tasks,
+                    **params,
                     id=f"{workflow.info().workflow_id}-{host}",
                 )
                 results[host] = res
