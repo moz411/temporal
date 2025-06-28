@@ -1,5 +1,5 @@
 - name: Test tasks
-  hosts: web
+  hosts: web,dev
   gather_facts: no
   tasks:
     - name: ping remote

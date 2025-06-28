@@ -308,10 +308,12 @@ class ConfigManager(object):
         import json
         # TODO: handle relative paths as relative to the directory containing the current playbook instead of CWD
         # Currently this is only used with absolute paths to the `ansible/config` directory
-        yml_file = to_bytes(yml_file)
+        # yml_file = to_bytes(yml_file)
         if os.path.exists(yml_file):
             with open(yml_file, 'r') as config_def:
-                return yaml_load(config_def) or {}
+                # return yaml_load(config_def) or {}
+                res = yaml.safe_load(config_def)
+                return res
         raise AnsibleError(
             "Missing base YAML definition file (bad install?): %s" % to_native(yml_file))
 

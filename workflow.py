@@ -47,17 +47,15 @@ class AnsiblePlaybookWorkflow:
 
 async def main():
     client = await Client.connect("temporal-frontend.temporal.svc:7233")
-    # with open("playbook.yml") as f:
-    #     playbook = yaml.safe_load(f)
+    with open("playbook.yml") as f:
+        playbook = yaml.safe_load(f)
     
     result = await client.execute_workflow(
         AnsiblePlaybookWorkflow.run,
-        "playbook.yml",
+        playbook,
         id="ansible-playbook-wf",
         task_queue="ansible-tasks",
     )
-    # print("Workflow result:", result)
-    # res = await AnsiblePlaybookWorkflow().run("playbook.yml")
 
 if __name__ == "__main__":
     asyncio.run(main())

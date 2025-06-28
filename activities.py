@@ -32,5 +32,6 @@ async def run_ansible_task(params) -> dict:
     # play = Play().load(play_source, variable_manager=variable_manager, loader=loader)
     # tqm.run(play)
     print(params)
+    return {"status": "success"}
 
 # asyncio.run(run_ansible_task(None))
