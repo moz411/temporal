@@ -1,19 +1,43 @@
 import asyncio
+import yaml
 from temporalio.client import Client
 from temporalio.worker import Worker
+from temporalio import activity
 from activities import run_ansible_task
 from workflow import AnsiblePlaybookWorkflow, HostWorkflow
+
+
+def _create_dynamic_activity(task):
+    """Create an activity for the given Ansible task."""
+
+    name = task.get("name") or next(iter(task))
+
+    @activity.defn(name=name)
+    async def _activity(params) -> dict:
+        new_params = {"host": params.get("host"), "task": task}
+        return await run_ansible_task(new_params)
+
+    return _activity
 
 async def main():
     # Start client
     client = await Client.connect("temporal-frontend.temporal.svc:7233")
 
-    # Run a worker for the workflow
+    # Load playbook to dynamically create activities for each task
+    with open("playbook.yml") as f:
+        playbook = yaml.safe_load(f)
+
+    activities = [run_ansible_task]
+    for play in playbook:
+        for task in play.get("tasks", []):
+            activities.append(_create_dynamic_activity(task))
+
+    # Run a worker for the workflow with dynamically created activities
     worker = Worker(
         client,
         task_queue="ansible-tasks",
         workflows=[AnsiblePlaybookWorkflow, HostWorkflow],
-        activities=[run_ansible_task],
+        activities=activities,
     )
     print("Starting worker...")
     await worker.run()

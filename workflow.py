@@ -3,9 +3,6 @@ import yaml
 from temporalio.client import Client
 from temporalio import workflow
 from datetime import timedelta
-from activities import run_ansible_task
-
-
 
 @workflow.defn
 class HostWorkflow:
@@ -15,9 +12,10 @@ class HostWorkflow:
         tasks: list[dict] = params.get("tasks", [])
         results = []
         for task in tasks:
-            params = {"host": host, "task": task}
+            activity_name = task.get("name") or next(iter(task))
+            params = {"host": host}
             result = await workflow.execute_activity(
-                run_ansible_task,
+                activity_name,
                 params,
                 schedule_to_close_timeout=timedelta(minutes=2),
             )
