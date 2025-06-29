@@ -1,5 +1,6 @@
 import asyncio
 import yaml
+from temporalio.common import RetryPolicy
 from temporalio.client import Client
 from temporalio import workflow
 from datetime import timedelta
@@ -7,7 +8,7 @@ from datetime import timedelta
 @workflow.defn
 class HostWorkflow:
     @workflow.run
-    async def run(self, params) -> list[dict]:
+    async def run(self, params) -> list:
         host: str = params.get("host", "")
         tasks: list[dict] = params.get("tasks", [])
         results = []
@@ -18,6 +19,13 @@ class HostWorkflow:
                 activity_name,
                 params,
                 schedule_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(
+                    backoff_coefficient=2.0,
+                    maximum_attempts=1,
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=2),
+                    # non_retryable_error_types=["ValueError"],
+                )
             )
             results.append(result)
         return results
@@ -25,8 +33,8 @@ class HostWorkflow:
 @workflow.defn
 class AnsiblePlaybookWorkflow:
     @workflow.run
-    async def run(self, playbook: list[dict]) -> dict[str, list[dict]]:
-        results: dict[str, list[dict]] = {}
+    async def run(self, playbook: list[dict]) -> dict[str, list]:
+        results: dict[str, str] = {}
         for play in playbook:
             tasks = play.get("tasks", [])
             hosts = play.get("hosts", [])

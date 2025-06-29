@@ -1,37 +1,43 @@
 import asyncio
 from temporalio import activity
+from ansible.executor.task_executor import TaskExecutor
 from ansible.playbook.task import Task
+from ansible.parsing.dataloader import DataLoader
+from ansible.inventory.manager import InventoryManager
+from ansible.vars.manager import VariableManager
+from ansible.playbook.play_context import PlayContext
+from ansible.inventory.host import Host
+from ansible.plugins.connection.local import Connection
+
+def parse_task_dict(task_dict: dict) -> Task:
+    loader = DataLoader()
+    inventory = InventoryManager(loader=loader, sources=["localhost,"])
+    variable_manager = VariableManager(loader=loader, inventory=inventory)
+
+    task_obj = Task.load(task_dict, variable_manager=variable_manager, loader=loader)
+    return task_obj
 
 @activity.defn
-async def run_ansible_task(params) -> dict:
-    # host_list = ['localhost', 'www.example.com', 'www.google.com']
-    # context.CLIARGS = ImmutableDict(connection='local', 
-    #     forks=10, become=None, become_method=None, become_user=None, check=False, diff=False, verbosity=0)
-    # sources = ','.join(host_list)
-    # if len(host_list) == 1:
-    #     sources += ','
-    # loader = DataLoader()
-    # inventory = InventoryManager(loader=loader, sources=sources)
-    # variable_manager = VariableManager(loader=loader, inventory=inventory)
+async def run_ansible_task(params) -> list:
+    result = []
+    host = Host(params.get('host', 'localhost'))
+    task = parse_task_dict(params.get('task', {}))
+    task_vars = {}
+    play_context =  PlayContext()
+    new_stdin =  {}
+    loader =  DataLoader()
+    shared_loader_obj =  loader
+    final_q =  {}
 
-    # tqm = TaskQueueManager(
-    #     inventory=inventory,
-    #     variable_manager=variable_manager,
-    #     loader=loader,
-    #     passwords=dict(vault_pass='secret'))
-
-    # play_source = dict(
-    #     name="Ansible Play",
-    #     hosts=host_list,
-    #     gather_facts='no',
-    #     tasks=[
-    #         dict(action=dict(module='command', args=dict(cmd='/usr/bin/uptime'))),
-    #     ]
-    # )
-
-    # play = Play().load(play_source, variable_manager=variable_manager, loader=loader)
-    # tqm.run(play)
-    print(params)
-    return {"status": "success"}
-
-# asyncio.run(run_ansible_task(None))
+    # res = AdHocCLI(args=cmd).run()
+    executor_result = TaskExecutor(
+            host,
+            task,
+            task_vars,
+            play_context,
+            new_stdin,
+            loader,
+            shared_loader_obj,
+            final_q
+        ).run()
+    return executor_result

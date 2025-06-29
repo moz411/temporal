@@ -13,7 +13,7 @@ def _create_dynamic_activity(task):
     name = task.get("name") or next(iter(task))
 
     @activity.defn(name=name)
-    async def _activity(params) -> dict:
+    async def _activity(params) -> list:
         new_params = {"host": params.get("host"), "task": task}
         return await run_ansible_task(new_params)
 

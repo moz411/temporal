@@ -7,3 +7,6 @@
 
     - name: echo hello
       shell: echo "Hello depuis Temporal"
+
+    - name: uptime
+      ansible.builtin.shell: uptime
