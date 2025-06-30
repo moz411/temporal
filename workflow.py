@@ -6,18 +6,16 @@ from temporalio import workflow
 from datetime import timedelta
 
 @workflow.defn
-class HostWorkflow:
+class PlayWorkflow:
     @workflow.run
-    async def run(self, params) -> list:
-        host: str = params.get("host", "")
-        tasks: list[dict] = params.get("tasks", [])
+    async def run(self, play) -> list:
         results = []
-        for task in tasks:
-            activity_name = task.get("name") or next(iter(task))
-            params = {"host": host}
+        for task in play["tasks"]:
+            activity_name = task.get("name", "unnamed")
+            task.update({"host": play["hosts"]})
             result = await workflow.execute_activity(
                 activity_name,
-                params,
+                task,
                 schedule_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(
                     backoff_coefficient=2.0,
@@ -31,37 +29,31 @@ class HostWorkflow:
         return results
 
 @workflow.defn
-class AnsiblePlaybookWorkflow:
+class PlaybookWorkflow:
     @workflow.run
     async def run(self, playbook: list[dict]) -> dict[str, list]:
         results: dict[str, str] = {}
         for play in playbook:
-            tasks = play.get("tasks", [])
-            hosts = play.get("hosts", [])
-            hosts_list = (
-                [h.strip() for h in hosts.split(",")]
-                if isinstance(hosts, str)
-                else list(hosts)
-            )
-            for host in hosts_list:
-                params = {"host": host, "tasks": tasks}
-                res = await workflow.execute_child_workflow(
-                    HostWorkflow.run,
-                    params,
-                    id=f"{workflow.info().workflow_id}-{host}",
+            name = play.get("name")
+            id = f"{workflow.info().workflow_id}: {name}"
+            res = await workflow.execute_child_workflow(
+                    PlayWorkflow.run,
+                    play,
+                    id=id
                 )
-                results[host] = res
+            results[id] = res
         return results
 
 async def main():
     client = await Client.connect("temporal-frontend.temporal.svc:7233")
-    with open("playbook.yml") as f:
+    filename = "playbook.yml"
+    with open(filename) as f:
         playbook = yaml.safe_load(f)
     
     result = await client.execute_workflow(
-        AnsiblePlaybookWorkflow.run,
+        PlaybookWorkflow.run,
         playbook,
-        id="ansible-playbook-wf",
+        id=filename,
         task_queue="ansible-tasks",
     )
 

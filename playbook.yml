@@ -1,12 +1,17 @@
-- name: Test tasks
+- name: First play
   hosts: web,dev
   gather_facts: no
   tasks:
-    - name: ping remote
-      ping:
-
     - name: echo hello
       shell: echo "Hello depuis Temporal"
 
     - name: uptime
       ansible.builtin.shell: uptime
+
+- name: Second play
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: test debug
+      debug: 
+        var: envvars
