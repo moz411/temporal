@@ -14,4 +14,4 @@
   tasks:
     - name: test debug
       debug: 
-        var: envvars
+        var: ansible_facts

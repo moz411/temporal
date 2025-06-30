@@ -8,7 +8,7 @@ from workflow import PlaybookWorkflow, PlayWorkflow
 
 def _create_dynamic_activity(task):
     """Create an activity for the given Ansible task."""
-    @activity.defn(name=task.get("name"))
+    @activity.defn(name=task["name"])
     async def _activity(params) -> dict:
         return await run_ansible_task(params)
 
