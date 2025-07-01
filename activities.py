@@ -25,7 +25,7 @@ play = Play().load(
         {
             "name": "Temporal Play",
             "hosts": "localhost",
-            "gather_facts": True,
+            "gather_facts": False,
         },
         variable_manager=variable_manager,
         loader=loader,
@@ -68,4 +68,4 @@ def list_activities(play):
         hosts = inventory.list_hosts(task["hosts"])
         for host in hosts:
             activities.append(f"{host}: {task['name']}")
-    return ",".join(activities)
+    return activities

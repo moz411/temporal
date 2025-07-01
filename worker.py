@@ -4,7 +4,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio import activity
 from activities import create_activities, list_activities
-from workflow import PlaybookWorkflow, PlayWorkflow
+from workflow import PlaybookWorkflow, PlayWorkflow, HostWorkflow
 from concurrent.futures import ThreadPoolExecutor
 
 async def main():
@@ -21,14 +21,15 @@ async def main():
             task["hosts"] = play["hosts"]
             activities += create_activities(task)
         with open(f"{play['name']}_activities.txt", "w") as f:
-            f.write(list_activities(play))
+            lines = list_activities(play)
+            f.writelines(f"{line}\n" for line in lines)
 
     # Run a worker for the workflow with dynamically created activities
     with ThreadPoolExecutor(max_workers=4) as executor:
         worker = Worker(
             client,
             task_queue="ansible-tasks",
-            workflows=[PlaybookWorkflow, PlayWorkflow],
+            workflows=[PlaybookWorkflow, PlayWorkflow, HostWorkflow],
             activities=activities,
             activity_executor=executor,
         )
