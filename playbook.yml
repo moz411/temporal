@@ -8,6 +8,10 @@
     - name: uptime
       ansible.builtin.shell: uptime
 
+    - name: sleep
+      ansible.builtin.wait_for:
+        timeout: 30
+
 - name: Second play
   hosts: localhost
   gather_facts: no

@@ -25,7 +25,7 @@ async def main():
             f.writelines(f"{line}\n" for line in lines)
 
     # Run a worker for the workflow with dynamically created activities
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=42) as executor:
         worker = Worker(
             client,
             task_queue="ansible-tasks",

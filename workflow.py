@@ -34,6 +34,7 @@ class PlayWorkflow:
     async def run(self, play) -> list:
         results: dict[str, str] = {}
         activities = []
+        futures = []
         with workflow.unsafe.sandbox_unrestricted():
             with open(f"{play['name']}_activities.txt") as f:
                 activities = [line.strip() for line in f]
@@ -43,12 +44,13 @@ class PlayWorkflow:
             tasks_per_host[host] = play["tasks"]
         for host, tasks in tasks_per_host.items():
             id = f"{workflow.info().workflow_id}:  {host}"
-            res = await workflow.execute_child_workflow(
+            futures.append(workflow.execute_child_workflow(
                         HostWorkflow.run,
                         {'host': host, 'tasks': tasks},
                         id=id
-                    )
-            results[id] = res
+                    ))
+            # results[id] = res
+        results = await asyncio.gather(*futures)
         return results
         
 
