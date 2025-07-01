@@ -15,7 +15,7 @@ from ansible.plugins import loader as first_loader
 play_context = PlayContext()
 play_context.connection = "local"
 loader = DataLoader()
-inventory = InventoryManager(loader=loader, sources=["localhost ansible_connection=local ansible_python_intepreter='/usr/bin/python3,"])
+inventory = InventoryManager(loader=loader, sources=["inventory.yml"])
 variable_manager = VariableManager(loader=loader, inventory=inventory)
 
 new_stdin =  {}
@@ -33,38 +33,39 @@ play = Play().load(
 block = play.compile()[0]
 block._play = play
 
-tqm = None
-try:
-    tqm = TaskQueueManager(
-        inventory=inventory,
-        variable_manager=variable_manager,
-        loader=loader,
-        passwords={},
-        stdout_callback="default",
-    )
-    tqm.run(play)
-finally:
-    if tqm:
-        tqm.cleanup()
-    loader.cleanup_all_tmp_files()
+def create_activities(task):
+    """Create an activity per host for the given Ansible task."""
+    activities = []
+    hosts = inventory.list_hosts(task["hosts"])
+    for host in hosts:
+        task_name = f"{host}: {task['name']}"
 
-@activity.defn
-async def run_ansible_task(params) -> list:
-    host = Host(params["host"])
-    params.pop("host")
-    result = []
-    task = Task.load(params, variable_manager=variable_manager, loader=loader)
-    task_vars = variable_manager.get_vars(play=play, host=host)
-    task._parent = block
-    
-    executor_result = TaskExecutor(
-            host,
-            task,
-            task_vars,
-            play_context,
-            new_stdin,
-            loader,
-            shared_loader_obj,
-            final_q
-        ).run()
-    return executor_result
+        @activity.defn(name=task_name)
+        def _activity(params) -> dict:
+            result = []
+            task = Task.load(params, variable_manager=variable_manager, loader=loader)
+            task_vars = variable_manager.get_vars(play=play, host=host)
+            task._parent = block
+            
+            executor_result = TaskExecutor(
+                    host,
+                    task,
+                    task_vars,
+                    play_context,
+                    new_stdin,
+                    loader,
+                    shared_loader_obj,
+                    final_q
+                ).run()
+            return executor_result
+
+        activities.append(_activity)
+    return activities
+
+def list_activities(play):
+    activities = []
+    for task in play["tasks"]:
+        hosts = inventory.list_hosts(task["hosts"])
+        for host in hosts:
+            activities.append(f"{host}: {task['name']}")
+    return ",".join(activities)

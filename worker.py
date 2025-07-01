@@ -3,16 +3,9 @@ import yaml
 from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio import activity
-from activities import run_ansible_task
+from activities import create_activities, list_activities
 from workflow import PlaybookWorkflow, PlayWorkflow
-
-def _create_dynamic_activity(task):
-    """Create an activity for the given Ansible task."""
-    @activity.defn(name=task["name"])
-    async def _activity(params) -> dict:
-        return await run_ansible_task(params)
-
-    return _activity
+from concurrent.futures import ThreadPoolExecutor
 
 async def main():
     # Start client
@@ -22,20 +15,25 @@ async def main():
     with open("playbook.yml") as f:
         playbook = yaml.safe_load(f)
 
-    activities = [run_ansible_task]
+    activities = []
     for play in playbook:
         for task in play["tasks"]:
-            activities.append(_create_dynamic_activity(task))
+            task["hosts"] = play["hosts"]
+            activities += create_activities(task)
+        with open(f"{play['name']}_activities.txt", "w") as f:
+            f.write(list_activities(play))
 
     # Run a worker for the workflow with dynamically created activities
-    worker = Worker(
-        client,
-        task_queue="ansible-tasks",
-        workflows=[PlaybookWorkflow, PlayWorkflow],
-        activities=activities,
-    )
-    print("Starting worker...")
-    await worker.run()
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        worker = Worker(
+            client,
+            task_queue="ansible-tasks",
+            workflows=[PlaybookWorkflow, PlayWorkflow],
+            activities=activities,
+            activity_executor=executor,
+        )
+        print("Starting worker...")
+        await worker.run()
 
 if __name__ == "__main__":
     asyncio.run(main())

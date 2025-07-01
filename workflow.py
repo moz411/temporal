@@ -10,22 +10,25 @@ class PlayWorkflow:
     @workflow.run
     async def run(self, play) -> list:
         results = []
+        activities = []
+        with workflow.unsafe.sandbox_unrestricted():
+            with open(f"{play['name']}_activities.txt") as f:
+                activities = f.read().split(",")
         for task in play["tasks"]:
-            activity_name = task.get("name", "unnamed")
-            task.update({"host": play["hosts"]})
-            result = await workflow.execute_activity(
-                activity_name,
-                task,
-                schedule_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(
-                    backoff_coefficient=2.0,
-                    maximum_attempts=1,
-                    initial_interval=timedelta(seconds=1),
-                    maximum_interval=timedelta(seconds=2),
-                    # non_retryable_error_types=["ValueError"],
+            for activity in activities:
+                result = await workflow.execute_activity(
+                    activity,
+                    task,
+                    schedule_to_close_timeout=timedelta(minutes=2),
+                    retry_policy=RetryPolicy(
+                        backoff_coefficient=2.0,
+                        maximum_attempts=1,
+                        initial_interval=timedelta(seconds=1),
+                        maximum_interval=timedelta(seconds=2),
+                        # non_retryable_error_types=["ValueError"],
+                    )
                 )
-            )
-            results.append(result)
+                results.append(result)
         return results
 
 @workflow.defn
