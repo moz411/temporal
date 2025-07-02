@@ -52,7 +52,6 @@ class PlayWorkflow:
             # results[id] = res
         results = await asyncio.gather(*futures)
         return results
-        
 
 @workflow.defn
 class PlaybookWorkflow:
