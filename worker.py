@@ -20,7 +20,6 @@ async def main():
     for play in playbook:
         aam.create_play(play)
         for task in play["tasks"]:
-            task["hosts"] = play["hosts"]
             activities += aam.create_activity_per_host(task)
         with open(f"{play['name']}_activities.txt", "w") as f:
             lines = aam.list_activities(play)

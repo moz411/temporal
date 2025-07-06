@@ -103,7 +103,7 @@ DOCUMENTATION = '''
           env: [{name: ANSIBLE_SSH_EXECUTABLE}]
           ini:
           - {key: ssh_executable, section: ssh_connection}
-          #const: ANSIBLE_SSH_EXECUTABLE
+          #const:   
           version_added: "2.2"
           vars:
               - name: ansible_ssh_executable

@@ -1,5 +1,5 @@
 - name: First play
-  hosts: web,dev
+  hosts: dev
   gather_facts: no
   tasks:
     - name: echo hello
@@ -10,7 +10,7 @@
 
     - name: sleep
       ansible.builtin.wait_for:
-        timeout: 30
+        timeout: 5
 
 - name: Second play
   hosts: localhost

@@ -15,7 +15,7 @@ class HostWorkflow:
         for task in params["tasks"]:
             result = await workflow.execute_activity(
                 f"{host}: {task['name']}",
-                task,
+                {"host": host, "task": task},
                 schedule_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(
                     backoff_coefficient=2.0,
@@ -32,24 +32,31 @@ class HostWorkflow:
 class PlayWorkflow:
     @workflow.run
     async def run(self, play) -> list:
-        results: dict[str, str] = {}
+        results = []
         activities = []
         futures = []
         with workflow.unsafe.sandbox_unrestricted():
             with open(f"{play['name']}_activities.txt") as f:
                 activities = [line.strip() for line in f]
         tasks_per_host = defaultdict(list)
+
         for line in activities:
             host, _ = map(str.strip, line.split(":", 1))
             tasks_per_host[host] = play["tasks"]
+            
         for host, tasks in tasks_per_host.items():
             id = f"{workflow.info().workflow_id}:  {host}"
-            futures.append(workflow.execute_child_workflow(
+            fut = workflow.execute_child_workflow(
                         HostWorkflow.run,
                         {'host': host, 'tasks': tasks},
                         id=id
-                    ))
-            # results[id] = res
+                    ) 
+            futures.append(fut)
+        # for host, fut in futures.items():
+            # try:
+                # results[host] = await fut
+            # except Exception as e:
+            #     results[host] = {"status": "failed", "error": str(e)}
         results = await asyncio.gather(*futures)
         return results
 
@@ -57,16 +64,24 @@ class PlayWorkflow:
 class PlaybookWorkflow:
     @workflow.run
     async def run(self, playbook: list[dict]) -> dict[str, list]:
-        results: dict[str, str] = {}
+        results = []
+        activities = []
+        futures = []
         for play in playbook:
             name = play.get("name")
             id = f"{workflow.info().workflow_id}: {name}"
-            res = await workflow.execute_child_workflow(
+            result = await workflow.execute_child_workflow(
                     PlayWorkflow.run,
                     play,
                     id=id
                 )
-            results[id] = res
+            results.append(result)
+        # for play, fut in futures.items():
+            # try:
+                # results[play] = await fut
+            # except Exception as e:
+            #     results[play] = {"status": "failed", "error": str(e)}
+        # results = await asyncio.gather(*futures)
         return results
 
 async def main():

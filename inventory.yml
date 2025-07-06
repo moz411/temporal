@@ -4,5 +4,7 @@ web:
     server2:
 dev:
   hosts:
-    9.10.11.12:
+    51.178.36.155:
     13.14.15.16:
+      ansible_user: ubuntu
+      ansible_ssh_timeout: 5

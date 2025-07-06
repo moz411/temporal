@@ -15,7 +15,7 @@ class AnsibleActivityManager:
         self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
         self.play = None
         self.play_context = PlayContext()
-        self.play_context.connection = "local"
+        self.play_context.connection = "ssh"
         self.new_stdin = {}
         self.shared_loader_obj = shared_loader_obj
         self.final_q = {}
@@ -23,25 +23,26 @@ class AnsibleActivityManager:
 
     def create_play(self, play_dict: dict):
         self.play = Play().load(play_dict, variable_manager=self.variable_manager, loader=self.loader)
+        self.hosts = self.inventory.list_hosts(play_dict["hosts"])
         self.block = self.play.compile()[0]
         self.block._play = self.play
         self._compiled_blocks[play_dict["name"]] = (self.play, self.block)
 
     def create_activity_per_host(self, task_dict: dict):
         activities = []
-        hosts = self.inventory.list_hosts(task_dict["hosts"])
 
-        for host in hosts:
+        for host in self.hosts:
             task_name = f"{host.name}: {task_dict['name']}"
 
             @activity.defn(name=task_name)
             async def _activity(params) -> dict:
-                task = Task.load(params, variable_manager=self.variable_manager, loader=self.loader)
+                activity_host = self.inventory.get_host(params['host'])
+                task = Task.load(params["task"], variable_manager=self.variable_manager, loader=self.loader)
                 task_vars = self.variable_manager.get_vars(play=self.play, host=host)
                 task._parent = self.block
 
                 result = TaskExecutor(
-                    host,
+                    activity_host,
                     task,
                     task_vars,
                     self.play_context,
@@ -50,6 +51,9 @@ class AnsibleActivityManager:
                     self.shared_loader_obj,
                     self.final_q
                 ).run()
+
+                if result.get("unreachable") or result.get("failed"):
+                    raise Exception(f"Task failed: {result}")
                 return result
 
             activities.append(_activity)
@@ -59,7 +63,6 @@ class AnsibleActivityManager:
     def list_activities(self, play_dict: dict):
         activities = []
         for task in play_dict["tasks"]:
-            hosts = self.inventory.list_hosts(task["hosts"])
-            for host in hosts:
+            for host in self.hosts:
                 activities.append(f"{host.name}: {task['name']}")
         return activities
