@@ -32,7 +32,7 @@ class HostWorkflow:
 class PlayWorkflow:
     @workflow.run
     async def run(self, play) -> list:
-        results = []
+        futures = []
         hosts = await workflow.execute_activity(
             "create_play",
             play,
@@ -46,11 +46,13 @@ class PlayWorkflow:
             )
         )
         for host in hosts:
-            result = await workflow.execute_child_workflow(
+            fut = workflow.start_child_workflow(
                     HostWorkflow.run,
                     {"host": host, "tasks": play["tasks"]},
                 )
-            results.append(result)
+            futures.append(fut)
+        result = await asyncio.gather(*futures)
+        return result
 
 @workflow.defn
 class PlaybookWorkflow:
