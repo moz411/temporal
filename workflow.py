@@ -14,7 +14,7 @@ class HostWorkflow:
         host = params["host"]
         for task in params["tasks"]:
             result = await workflow.execute_activity(
-                f"{host}: {task['name']}",
+                "run_ansible_task",
                 {"host": host, "task": task},
                 schedule_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(
@@ -33,37 +33,29 @@ class PlayWorkflow:
     @workflow.run
     async def run(self, play) -> list:
         results = []
-        activities = []
-        futures = []
-        with workflow.unsafe.sandbox_unrestricted():
-            with open(f"{play['name']}_activities.txt") as f:
-                activities = [line.strip() for line in f]
-        tasks_per_host = defaultdict(list)
-
-        for line in activities:
-            host, _ = map(str.strip, line.split(":", 1))
-            tasks_per_host[host] = play["tasks"]
-            
-        for host, tasks in tasks_per_host.items():
-            id = f"{workflow.info().workflow_id}:  {host}"
-            fut = workflow.execute_child_workflow(
-                        HostWorkflow.run,
-                        {'host': host, 'tasks': tasks},
-                        id=id
-                    ) 
-            futures.append(fut)
-        # for host, fut in futures.items():
-            # try:
-                # results[host] = await fut
-            # except Exception as e:
-            #     results[host] = {"status": "failed", "error": str(e)}
-        results = await asyncio.gather(*futures)
-        return results
+        hosts = await workflow.execute_activity(
+            "create_play",
+            play,
+            schedule_to_close_timeout=timedelta(minutes=2),
+            retry_policy=RetryPolicy(
+                backoff_coefficient=2.0,
+                maximum_attempts=1,
+                initial_interval=timedelta(seconds=1),
+                maximum_interval=timedelta(seconds=2),
+                # non_retryable_error_types=["ValueError"],
+            )
+        )
+        for host in hosts:
+            result = await workflow.execute_child_workflow(
+                    HostWorkflow.run,
+                    {"host": host, "tasks": play["tasks"]},
+                )
+            results.append(result)
 
 @workflow.defn
 class PlaybookWorkflow:
     @workflow.run
-    async def run(self, playbook: list[dict]) -> dict[str, list]:
+    async def run(self, playbook: list[dict]) -> list:
         results = []
         activities = []
         futures = []
