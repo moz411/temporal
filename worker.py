@@ -4,7 +4,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio import activity
 from activities import AnsibleActivityManager
-from workflow import PlaybookWorkflow, PlayWorkflow, HostWorkflow
+from workflow import HostWorkflow
 from concurrent.futures import ThreadPoolExecutor
 
 async def main():
@@ -19,7 +19,7 @@ async def main():
         worker = Worker(
             client,
             task_queue="ansible-tasks",
-            workflows=[PlaybookWorkflow, PlayWorkflow, HostWorkflow],
+            workflows=[HostWorkflow],
             activities=[aam.create_play, aam.run_ansible_task],
             activity_executor=executor,
         )
