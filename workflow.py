@@ -1,7 +1,7 @@
 import asyncio
 import yaml
 from temporalio.common import RetryPolicy
-from temporalio.client import Client, WorkflowFailureError
+from temporalio.client import Client
 from temporalio import workflow
 from datetime import timedelta
 from collections import defaultdict

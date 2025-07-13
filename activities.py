@@ -35,7 +35,6 @@ class AnsibleActivityManager:
         task = Task.load(params["task"], variable_manager=self.variable_manager, loader=self.loader)
         task_vars = self.variable_manager.get_vars(play=self.play, host=activity_host)
         task._parent = self.block
-        print(ctx)
 
         result = TaskExecutor(
             activity_host,
@@ -49,7 +48,8 @@ class AnsibleActivityManager:
         ).run()
 
         if result.get("unreachable") or result.get("failed"):
-            raise Exception(f"Task failed: {result}")
+            message = result.get("msg", "") + result.get("message", "") 
+            raise Exception(message)
         return result
 
     def build_play_context(self, host):
